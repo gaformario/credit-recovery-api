@@ -1,0 +1,11 @@
+.git
+.gitignore
+.gitattributes
+.env
+.vscode
+.mvn
+mvnw
+mvnw.cmd
+target
+HELP.md
+*.log
