@@ -5,6 +5,7 @@ import com.gabrielformario.credit_recovery_api.strategy.domain.CommunicationChan
 import com.gabrielformario.credit_recovery_api.strategy.domain.CreditAction;
 import com.gabrielformario.credit_recovery_api.strategy.dto.StrategyRequest;
 import com.gabrielformario.credit_recovery_api.strategy.dto.StrategyResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -20,24 +21,24 @@ import java.util.Optional;
 @Repository
 public class StrategyRepository {
 
-	private static final String TABLE_NAME = "credit-recovery-strategies";
-
 	private final DynamoDbClient dynamoDbClient;
+	private final String tableName;
 
-	public StrategyRepository(DynamoDbClient dynamoDbClient) {
+	public StrategyRepository(DynamoDbClient dynamoDbClient, @Value("${aws.dynamodb.table-name}") String tableName) {
 		this.dynamoDbClient = dynamoDbClient;
+		this.tableName = tableName;
 	}
 
 	public void save(StrategyRequest request, StrategyResponse response) {
 		dynamoDbClient.putItem(PutItemRequest.builder()
-				.tableName(TABLE_NAME)
+				.tableName(tableName)
 				.item(toItem(request, response))
 				.build());
 	}
 
 	public Optional<StrategyResponse> findByCustomerId(String customerId) {
 		GetItemResponse response = dynamoDbClient.getItem(GetItemRequest.builder()
-				.tableName(TABLE_NAME)
+				.tableName(tableName)
 				.key(Map.of("customerId", stringValue(customerId)))
 				.build());
 
