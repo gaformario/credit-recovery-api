@@ -43,6 +43,38 @@ class CreditStrategyEngineTest {
 	}
 
 	@Test
+	void shouldGeneratePositivationWhenCustomerHasNoOverdueAndHighCreditScore() {
+		StrategyResponse strategy = creditStrategyEngine.generate(requestWith(
+				0,
+				BigDecimal.valueOf(500.00),
+				700,
+				ProductType.LOAN
+		));
+
+		assertEquals(CreditAction.POSITIVATION, strategy.creditAction());
+		assertEquals(CommunicationChannel.EMAIL, strategy.communicationChannel());
+		assertEquals(CardAction.NONE, strategy.cardAction());
+		assertFalse(strategy.sendToPartnerOffice());
+		assertFalse(strategy.digitalChannelNotification());
+	}
+
+	@Test
+	void shouldUseSmsForLowAmountInEarlyOverdue() {
+		StrategyResponse strategy = creditStrategyEngine.generate(requestWith(
+				5,
+				BigDecimal.valueOf(1000.00),
+				420,
+				ProductType.LOAN
+		));
+
+		assertEquals(CreditAction.NONE, strategy.creditAction());
+		assertEquals(CommunicationChannel.SMS, strategy.communicationChannel());
+		assertEquals(CardAction.NONE, strategy.cardAction());
+		assertFalse(strategy.sendToPartnerOffice());
+		assertFalse(strategy.digitalChannelNotification());
+	}
+
+	@Test
 	void shouldGenerateStrategyForThirtyOneToSixtyDaysOverdue() {
 		StrategyResponse strategy = creditStrategyEngine.generate(requestWithDaysOverdue(60, ProductType.OVERDRAFT));
 
@@ -76,12 +108,21 @@ class CreditStrategyEngineTest {
 	}
 
 	private StrategyRequest requestWithDaysOverdue(int daysOverdue, ProductType productType) {
+		return requestWith(daysOverdue, BigDecimal.valueOf(15000.00), 420, productType);
+	}
+
+	private StrategyRequest requestWith(
+			int daysOverdue,
+			BigDecimal outstandingAmount,
+			int creditScore,
+			ProductType productType
+	) {
 		return new StrategyRequest(
 				"PJ-12345",
 				"Empresa XPTO LTDA",
 				daysOverdue,
-				BigDecimal.valueOf(15000.00),
-				420,
+				outstandingAmount,
+				creditScore,
 				productType
 		);
 	}

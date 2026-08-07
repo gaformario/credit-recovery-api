@@ -8,6 +8,7 @@ import com.gabrielformario.credit_recovery_api.strategy.dto.StrategyRequest;
 import com.gabrielformario.credit_recovery_api.strategy.dto.StrategyResponse;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 @Component
@@ -18,8 +19,8 @@ public class CreditStrategyEngine {
 
 		return new StrategyResponse(
 				request.customerId(),
-				resolveCreditAction(daysOverdue),
-				resolveCommunicationChannel(daysOverdue),
+				resolveCreditAction(daysOverdue, request.creditScore()),
+				resolveCommunicationChannel(daysOverdue, request.outstandingAmount()),
 				resolveCardAction(request.productType(), daysOverdue),
 				shouldSendToPartnerOffice(daysOverdue),
 				shouldNotifyDigitalChannel(daysOverdue),
@@ -27,7 +28,11 @@ public class CreditStrategyEngine {
 		);
 	}
 
-	private CreditAction resolveCreditAction(int daysOverdue) {
+	private CreditAction resolveCreditAction(int daysOverdue, int creditScore) {
+		if (daysOverdue == 0 && creditScore >= 700) {
+			return CreditAction.POSITIVATION;
+		}
+
 		if (daysOverdue <= 30) {
 			return CreditAction.NONE;
 		}
@@ -35,7 +40,11 @@ public class CreditStrategyEngine {
 		return CreditAction.NEGATIVATION;
 	}
 
-	private CommunicationChannel resolveCommunicationChannel(int daysOverdue) {
+	private CommunicationChannel resolveCommunicationChannel(int daysOverdue, BigDecimal outstandingAmount) {
+		if (daysOverdue >= 1 && daysOverdue <= 10 && outstandingAmount.compareTo(BigDecimal.valueOf(1000)) <= 0) {
+			return CommunicationChannel.SMS;
+		}
+
 		if (daysOverdue <= 10) {
 			return CommunicationChannel.EMAIL;
 		}
