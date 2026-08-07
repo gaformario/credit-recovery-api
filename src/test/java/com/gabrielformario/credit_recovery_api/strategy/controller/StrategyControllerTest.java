@@ -1,12 +1,23 @@
 package com.gabrielformario.credit_recovery_api.strategy.controller;
 
+import com.gabrielformario.credit_recovery_api.strategy.domain.CardAction;
+import com.gabrielformario.credit_recovery_api.strategy.domain.CommunicationChannel;
+import com.gabrielformario.credit_recovery_api.strategy.domain.CreditAction;
+import com.gabrielformario.credit_recovery_api.strategy.dto.StrategyResponse;
+import com.gabrielformario.credit_recovery_api.strategy.repository.StrategyRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
+import java.util.Optional;
+
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -19,6 +30,9 @@ class StrategyControllerTest {
 
 	@Autowired
 	private MockMvc mockMvc;
+
+	@MockitoBean
+	private StrategyRepository strategyRepository;
 
 	@Test
 	void shouldReturnCreatedWhenRequestIsValid() throws Exception {
@@ -77,5 +91,35 @@ class StrategyControllerTest {
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.customerId").value("PJ-12345"))
 				.andExpect(jsonPath("$.cardAction").value("TEMPORARY_BLOCK"));
+	}
+
+	@Test
+	void shouldReturnOkWhenStrategyExists() throws Exception {
+		when(strategyRepository.findByCustomerId("PJ-12345"))
+				.thenReturn(Optional.of(new StrategyResponse(
+						"PJ-12345",
+						CreditAction.NEGATIVATION,
+						CommunicationChannel.WHATSAPP,
+						CardAction.TEMPORARY_BLOCK,
+						true,
+						true,
+						Instant.parse("2026-08-07T15:00:00Z")
+				)));
+
+		mockMvc.perform(get(STRATEGIES_URL + "/PJ-12345"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.customerId").value("PJ-12345"))
+				.andExpect(jsonPath("$.cardAction").value("TEMPORARY_BLOCK"));
+	}
+
+	@Test
+	void shouldReturnNotFoundWhenStrategyDoesNotExist() throws Exception {
+		when(strategyRepository.findByCustomerId("PJ-NOT-FOUND"))
+				.thenReturn(Optional.empty());
+
+		mockMvc.perform(get(STRATEGIES_URL + "/PJ-NOT-FOUND"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.status").value(404))
+				.andExpect(jsonPath("$.message").value("Strategy not found for customerId: PJ-NOT-FOUND"));
 	}
 }
