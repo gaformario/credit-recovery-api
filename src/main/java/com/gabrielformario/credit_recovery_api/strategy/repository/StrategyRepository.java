@@ -5,6 +5,8 @@ import com.gabrielformario.credit_recovery_api.strategy.domain.CommunicationChan
 import com.gabrielformario.credit_recovery_api.strategy.domain.CreditAction;
 import com.gabrielformario.credit_recovery_api.strategy.dto.StrategyRequest;
 import com.gabrielformario.credit_recovery_api.strategy.dto.StrategyResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -21,6 +23,8 @@ import java.util.Optional;
 @Repository
 public class StrategyRepository {
 
+	private static final Logger logger = LoggerFactory.getLogger(StrategyRepository.class);
+
 	private final DynamoDbClient dynamoDbClient;
 	private final String tableName;
 
@@ -30,17 +34,30 @@ public class StrategyRepository {
 	}
 
 	public void save(StrategyRequest request, StrategyResponse response) {
-		dynamoDbClient.putItem(PutItemRequest.builder()
-				.tableName(tableName)
-				.item(toItem(request, response))
-				.build());
+		try {
+			dynamoDbClient.putItem(PutItemRequest.builder()
+					.tableName(tableName)
+					.item(toItem(request, response))
+					.build());
+		}
+		catch (RuntimeException exception) {
+			logger.error("strategy persistence failed customerId={} tableName={}", request.customerId(), tableName, exception);
+			throw exception;
+		}
 	}
 
 	public Optional<StrategyResponse> findByCustomerId(String customerId) {
-		GetItemResponse response = dynamoDbClient.getItem(GetItemRequest.builder()
-				.tableName(tableName)
-				.key(Map.of("customerId", stringValue(customerId)))
-				.build());
+		GetItemResponse response;
+		try {
+			response = dynamoDbClient.getItem(GetItemRequest.builder()
+					.tableName(tableName)
+					.key(Map.of("customerId", stringValue(customerId)))
+					.build());
+		}
+		catch (RuntimeException exception) {
+			logger.error("strategy query failed customerId={} tableName={}", customerId, tableName, exception);
+			throw exception;
+		}
 
 		if (!response.hasItem()) {
 			return Optional.empty();
