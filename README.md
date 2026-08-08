@@ -332,10 +332,6 @@ Comando utilizado:
 k6 run performance\post-strategy.js
 ```
 
-### Print de performance dos endpoints
-
-Espaço para inserir o print do resultado do k6:
-
 ![Resultado do teste de performance com k6](prints/k6-performance.png)
 
 ## Arquitetura em Produção
