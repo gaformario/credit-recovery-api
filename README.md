@@ -283,33 +283,66 @@ Dados que não devem ser registrados:
 
 ## Performance
 
-O objetivo de performance da API pode ser validado com testes simples nos endpoints principais.
+Foi criado um teste pequeno de performance usando k6 para validar o comportamento do endpoint principal da API.
 
-Endpoints sugeridos para medição:
+O objetivo não é realizar um stress test, mas sim demonstrar uma validação simples e controlada de tempo de resposta.
 
-- `GET /actuator/health`
-- `POST /api/v1/strategies`
-- `GET /api/v1/strategies/{customerId}`
+Endpoint testado:
+
+```text
+POST /api/v1/strategies
+```
+
+Configuração do teste:
+
+- 3 usuários virtuais;
+- duração de 30 segundos;
+- threshold de referência: `p95 < 300 ms`;
+- taxa de erro máxima esperada: `5%`.
+
+Resultado obtido:
+
+| Métrica               |    Resultado |
+| --------------------- | -----------: |
+| Total de requisições  |         3564 |
+| Throughput médio      | 118.74 req/s |
+| Tempo médio           |     25.15 ms |
+| Mediana               |     14.32 ms |
+| p90                   |     62.29 ms |
+| p95                   |      69.1 ms |
+| Maior tempo observado |    528.57 ms |
+| Taxa de erro          |        0.00% |
+| Checks com sucesso    |         100% |
+
+Conclusão:
+
+```text
+No teste pequeno e controlado, o endpoint POST /api/v1/strategies ficou abaixo da referência de 300 ms no p95 e não apresentou erros HTTP.
+```
+
+Observação:
+
+```text
+Apesar de o maior tempo observado ter sido 528.57 ms, o critério utilizado foi p95. Isso significa que 95% das requisições responderam em até 69.1 ms.
+```
+
+Comando utilizado:
+
+```powershell
+k6 run performance\post-strategy.js
+```
 
 ### Print de performance dos endpoints
 
-Espaço para inserir prints dos testes de performance:
+Espaço para inserir o print do resultado do k6:
 
-```text
-[tempo de resposta do health check]
-
-[tempo de resposta do POST /api/v1/strategies]
-
-[tempo de resposta do GET /api/v1/strategies/{customerId}]
-```
+![Resultado do teste de performance com k6](prints/k6-performance.png)
 
 ## Arquitetura em Produção
 
 Para um ambiente produtivo, a arquitetura poderia evoluir sem mudar a ideia central da aplicação.
 
-```text
-[ print da arquitetura real/produtiva aqui]
-```
+![Diagrama da arquitetura em produção](prints/diagrama-arquitetura-prod.png)
 
 ## Resiliência e escalabilidade
 
@@ -346,7 +379,7 @@ Comando:
 
 ## Pontos que podem ser evoluídos
 
-- Adicionar evidência de performance ao repositório ou à documentação.
+- Manter evidências de performance atualizadas na documentação.
 - Adicionar logs para erros inesperados no tratamento global.
 - Criar histórico de estratégias com chave composta no DynamoDB.
 - Expor métricas de aplicação em ambiente controlado.
