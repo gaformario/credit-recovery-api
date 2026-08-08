@@ -1,36 +1,36 @@
 # Credit Recovery API
 
-API REST para gerar e consultar estratégias de recuperação de crédito para clientes PJ.
+API REST para geração e consulta de estratégias de recuperação de crédito para clientes PJ.
 
-O projeto recebe dados cadastrais e financeiros simples, aplica um motor de regras fictícias e persiste a estratégia gerada no Amazon DynamoDB.
+A solução recebe informações cadastrais, financeiras e de crédito, processa esses dados por meio de um motor de regras fictícias e gera uma estratégia de recuperação personalizada. As estratégias geradas são disponibilizadas por API REST e persistidas no Amazon DynamoDB.
 
-## O que a aplicação faz
+O projeto foi desenvolvido como um MVP e também demonstra aspectos de performance, observabilidade, conteinerização e uma proposta de arquitetura AWS escalável e resiliente para evolução em ambiente produtivo.
 
-- Recebe dados de um cliente PJ.
-- Gera uma estratégia de recuperação de crédito.
-- Define ação de crédito, canal de comunicação, ação de cartão e notificações.
-- Persiste a estratégia gerada no DynamoDB.
-- Permite consultar a estratégia pelo `customerId`.
-- Expõe health check para monitoramento.
-- Gera logs para acompanhamento em ambiente local ou AWS.
+---
 
-## Tecnologias
+## Funcionalidades
 
-- Java 21
-- Spring Boot
-- Maven
-- Spring Web
-- Bean Validation
-- Spring Boot Actuator
-- AWS SDK for Java 2.x
-- Amazon DynamoDB
-- Docker
-- OpenAPI
-- JUnit, Spring Boot Test e MockMvc
+A aplicação permite:
 
-## Arquitetura implementada
+- Receber dados cadastrais e financeiros de clientes PJ.
+- Gerar estratégias de recuperação de crédito.
+- Definir ações de crédito.
+- Definir canais de comunicação.
+- Definir ações relacionadas a cartão.
+- Definir envio para escritório parceiro.
+- Definir notificações em canais digitais.
+- Persistir estratégias no Amazon DynamoDB.
+- Consultar estratégias pelo `customerId`.
+- Expor health check para monitoramento.
+- Gerar logs para acompanhamento da aplicação.
 
-Fluxo principal:
+---
+
+## Arquitetura implementada — MVP
+
+A implementação atual utiliza uma arquitetura em camadas, separando a exposição da API, a orquestração da aplicação, as regras de negócio e a persistência.
+
+### Fluxo da aplicação
 
 ```text
 StrategyController
@@ -40,27 +40,31 @@ StrategyController
             -> DynamoDB
 ```
 
-Responsabilidades:
+### Responsabilidades
 
-- `StrategyController`: recebe requisições HTTP e retorna respostas da API.
-- `StrategyService`: orquestra a geração, a persistência e a consulta das estratégias.
-- `CreditStrategyEngine`: concentra as regras de decisão.
-- `StrategyRepository`: acessa o DynamoDB.
-- `GlobalExceptionHandler`: padroniza as respostas de erro.
-- `AwsDynamoDbConfig`: configura o cliente DynamoDB.
+- `StrategyController`: recebe as requisições HTTP e retorna as respostas da API.
+- `StrategyService`: orquestra a geração, persistência e consulta das estratégias.
+- `CreditStrategyEngine`: concentra as regras utilizadas para geração das estratégias.
+- `StrategyRepository`: realiza o acesso ao Amazon DynamoDB.
+- `GlobalExceptionHandler`: padroniza o tratamento e as respostas de erro da API.
+- `AwsDynamoDbConfig`: configura o cliente utilizado para acesso ao DynamoDB.
 - `OpenApiConfig`: configura a documentação OpenAPI.
 
-### Arquitetura Implementada
+### Infraestrutura utilizada no MVP
 
-Diagrama da arquitetura implementada:
+A aplicação Spring Boot é empacotada em uma imagem Docker e pode ser executada em uma task do Amazon ECS Fargate.
 
-```text
-[Adicionar print da arquitetura implementada]
-```
+O Amazon DynamoDB é utilizado para persistência das estratégias.
+
+Em ambiente AWS, os logs da aplicação podem ser coletados pelo Amazon CloudWatch Logs.
+
+![Diagrama da arquitetura implementada](prints/diagrama-arquitetura-mvp.png)
+
+---
 
 ## Regras de estratégia
 
-As regras abaixo são fictícias e servem para demonstrar o funcionamento do motor de estratégia.
+As regras abaixo são fictícias e foram criadas apenas para demonstrar o funcionamento do motor de decisão da aplicação.
 
 | Condição                                               | Canal    | Ação de crédito | Ação de cartão  | Escritório parceiro | Canal digital |
 | ------------------------------------------------------ | -------- | --------------- | --------------- | ------------------- | ------------- |
@@ -72,7 +76,13 @@ As regras abaixo são fictícias e servem para demonstrar o funcionamento do mot
 | `daysOverdue > 60`                                     | WHATSAPP | NEGATIVATION    | NONE            | true                | true          |
 | `CREDIT_CARD` e `daysOverdue > 60`                     | WHATSAPP | NEGATIVATION    | TEMPORARY_BLOCK | true                | true          |
 
-## Endpoints
+O motor de regras foi isolado no `CreditStrategyEngine`, evitando que as regras de negócio fiquem acopladas à camada HTTP ou à camada de persistência.
+
+---
+
+## API REST
+
+### Endpoints
 
 | Método | Rota                              | Descrição                         |
 | ------ | --------------------------------- | --------------------------------- |
@@ -80,6 +90,8 @@ As regras abaixo são fictícias e servem para demonstrar o funcionamento do mot
 | `GET`  | `/api/v1/strategies/{customerId}` | Consulta a estratégia por cliente |
 | `GET`  | `/actuator/health`                | Health check da aplicação         |
 | `GET`  | `/v3/api-docs`                    | Documento OpenAPI em JSON         |
+
+---
 
 ## Exemplo de requisição
 
@@ -99,7 +111,7 @@ Content-Type: application/json
 }
 ```
 
-Exemplo de resposta:
+### Exemplo de resposta
 
 ```json
 {
@@ -113,7 +125,9 @@ Exemplo de resposta:
 }
 ```
 
-## Exemplos adicionais
+---
+
+## Exemplos adicionais de estratégia
 
 ### Positivação
 
@@ -131,10 +145,12 @@ Exemplo de resposta:
 Resultado esperado:
 
 ```json
-"creditAction": "POSITIVATION"
+{
+  "creditAction": "POSITIVATION"
+}
 ```
 
-### SMS
+### Comunicação via SMS
 
 ```json
 {
@@ -150,7 +166,9 @@ Resultado esperado:
 Resultado esperado:
 
 ```json
-"communicationChannel": "SMS"
+{
+  "communicationChannel": "SMS"
+}
 ```
 
 ### Bloqueio temporário de cartão
@@ -169,49 +187,30 @@ Resultado esperado:
 Resultado esperado:
 
 ```json
-"cardAction": "TEMPORARY_BLOCK"
+{
+  "cardAction": "TEMPORARY_BLOCK"
+}
 ```
 
-## Configurações
+---
 
-O projeto utiliza serviços reais da AWS. A integração é feita pela aplicação Spring Boot usando o AWS SDK for Java 2.x.
+## Persistência com DynamoDB
 
-As principais configurações da aplicação ficam externalizadas por variáveis de ambiente:
+A aplicação utiliza o Amazon DynamoDB como banco de dados para armazenamento das estratégias geradas.
 
-| Variável              | Descrição                 | Valor padrão                 |
-| --------------------- | ------------------------- | ---------------------------- |
-| `AWS_REGION`          | Região AWS usada pelo SDK | `sa-east-1`                  |
-| `DYNAMODB_TABLE_NAME` | Nome da tabela DynamoDB   | `credit-recovery-strategies` |
-
-O projeto não possui access key ou secret key no código. Cada ambiente precisa ter sua própria configuração de acesso à AWS.
-
-Em ambiente local, a aplicação espera que as credenciais estejam configuradas na máquina, normalmente por meio da AWS CLI:
-
-```powershell
-aws configure
-```
-
-Também é possível usar perfis configurados pela AWS CLI, variáveis de ambiente ou outro mecanismo suportado pela cadeia padrão de credenciais da AWS.
-
-Em ambiente AWS, como ECS Fargate, a aplicação deve utilizar IAM Role associada à task. Dessa forma, a aplicação acessa o DynamoDB sem credenciais fixas na imagem Docker ou no código-fonte.
-
-A execução em ECS Fargate depende da configuração manual da infraestrutura no Console AWS, incluindo cluster, task definition, imagem do ECR, variáveis de ambiente, security group, subnets, IAM Role da task e configuração de logs no CloudWatch.
-
-## DynamoDB
-
-Tabela utilizada:
+### Tabela
 
 ```text
 credit-recovery-strategies
 ```
 
-Chave primária:
+### Chave primária
 
 ```text
 Partition key: customerId (String)
 ```
 
-Campos persistidos:
+### Campos persistidos
 
 - `customerId`
 - `companyName`
@@ -226,26 +225,307 @@ Campos persistidos:
 - `digitalChannelNotification`
 - `generatedAt`
 
-Para o MVP, `customerId` como chave única representa uma estratégia atual por cliente.
+No MVP, o `customerId` é utilizado como chave única, fazendo com que cada cliente possua sua estratégia atual armazenada.
 
-Para uma arquitetura com histórico, uma evolução simples seria usar:
+Uma possível evolução para manter o histórico de estratégias seria utilizar uma chave composta:
 
 ```text
 PK: customerId
 SK: generatedAt
 ```
 
-Assim, seria possível manter várias estratégias geradas para o mesmo cliente ao longo do tempo.
+Dessa forma, seria possível armazenar diferentes estratégias geradas para o mesmo cliente ao longo do tempo.
+
+---
+
+## Observabilidade
+
+A aplicação possui logs para acompanhamento de operações importantes.
+
+### Logs implementados
+
+- geração de estratégia;
+- consulta encontrada;
+- consulta não encontrada;
+- erro na geração;
+- erro na persistência;
+- tempo de processamento da geração por meio de `durationMs`.
+
+Também é disponibilizado health check por meio do Spring Boot Actuator:
+
+```text
+GET /actuator/health
+```
+
+Os logs são enviados para `stdout/stderr`, permitindo a coleta pelo Amazon CloudWatch Logs quando a aplicação é executada no ECS Fargate.
+
+### Dados sensíveis
+
+Informações financeiras e credenciais não devem ser registradas diretamente nos logs.
+
+Exemplos de dados que devem ser evitados:
+
+- requisição completa;
+- `outstandingAmount`;
+- `creditScore`;
+- credenciais AWS;
+- informações financeiras sensíveis.
+
+---
+
+## Performance
+
+Foi criado um teste controlado de performance utilizando k6 para validar o comportamento do principal endpoint da aplicação.
+
+O objetivo deste teste não é representar um stress test completo de produção, mas fornecer uma evidência inicial do comportamento da API em relação à referência de resposta de até `300 ms`.
+
+### Endpoint testado
+
+```text
+POST /api/v1/strategies
+```
+
+### Configuração
+
+- 3 usuários virtuais;
+- duração de 30 segundos;
+- threshold de referência: `p95 < 300 ms`;
+- taxa máxima de erro esperada: `5%`.
+
+### Resultado
+
+| Métrica               | Resultado    |
+| --------------------- | -----------: |
+| Total de requisições  | 3564         |
+| Throughput médio      | 118.74 req/s |
+| Tempo médio           | 25.15 ms     |
+| Mediana               | 14.32 ms     |
+| p90                   | 62.29 ms     |
+| p95                   | 69.1 ms      |
+| Maior tempo observado | 528.57 ms    |
+| Taxa de erro          | 0.00%        |
+| Checks com sucesso    | 100%         |
+
+### Conclusão
+
+No cenário pequeno e controlado utilizado no teste, o endpoint:
+
+```text
+POST /api/v1/strategies
+```
+
+apresentou `p95 de 69.1 ms`, permanecendo abaixo da referência de `300 ms`, sem erros HTTP durante a execução.
+
+O maior tempo individual observado foi de `528.57 ms`. Entretanto, o critério utilizado para a validação foi o percentil `p95`, indicando que 95% das requisições foram concluídas em até `69.1 ms`.
+
+Esses resultados representam apenas o cenário testado e não substituem testes de carga e stress mais abrangentes para um ambiente produtivo.
+
+### Executar o teste
+
+```powershell
+k6 run performance\post-strategy.js
+```
+
+![Resultado do teste de performance com k6](prints/k6-performance.png)
+
+---
+
+## Resiliência e escalabilidade
+
+O MVP utiliza serviços gerenciados da AWS e possui mecanismos básicos para facilitar o monitoramento e diagnóstico da aplicação.
+
+Na implementação atual:
+
+- a API possui tratamento global de erros;
+- o health check permite verificar o estado da aplicação;
+- o DynamoDB fornece persistência gerenciada e escalável;
+- a aplicação pode ser executada em container no ECS Fargate;
+- os logs podem ser centralizados no CloudWatch.
+
+Para um cenário produtivo, a arquitetura pode evoluir para utilizar múltiplas tasks ECS Fargate atrás de um Application Load Balancer.
+
+Dessa forma, a falha de uma task individual não precisa comprometer toda a disponibilidade da API.
+
+O Auto Scaling também permite aumentar ou reduzir a quantidade de tasks conforme a demanda da aplicação.
+
+---
+
+## Arquitetura proposta para produção
+
+A arquitetura de produção mantém a mesma aplicação e as mesmas regras de negócio do MVP, adicionando componentes voltados principalmente para disponibilidade, escalabilidade e observabilidade.
+
+![Diagrama da arquitetura em produção](prints/diagrama-arquitetura-prod.png)
+
+### Principais evoluções
+
+- Application Load Balancer para distribuição das requisições.
+- Múltiplas tasks no Amazon ECS Fargate.
+- Auto Scaling conforme demanda.
+- Amazon DynamoDB como banco gerenciado e escalável.
+- Amazon CloudWatch para centralização de logs e métricas.
+- Alarmes para identificação de falhas e degradação da aplicação.
+- Tracing para facilitar a análise de gargalos e requisições.
+- IAM Roles com princípio de menor privilégio.
+- Distribuição das tasks para reduzir impacto de falhas individuais.
+
+Essa arquitetura permite evoluir o MVP sem alterar a ideia central da aplicação.
+
+---
+
+## Decisões de arquitetura
+
+Algumas decisões foram simplificadas para manter o projeto dentro do escopo de um MVP.
+
+### DynamoDB
+
+O DynamoDB foi escolhido por ser um banco NoSQL gerenciado pela AWS, com capacidade de escalabilidade e integração direta com os demais serviços utilizados na arquitetura.
+
+### Motor de regras isolado
+
+As decisões de estratégia ficam concentradas no `CreditStrategyEngine`.
+
+Essa separação reduz o acoplamento entre regras de negócio, endpoints HTTP e persistência.
+
+### Aplicação conteinerizada
+
+A aplicação é empacotada com Docker, permitindo maior consistência entre execução local e execução em serviços de containers como o ECS Fargate.
+
+### Credenciais AWS
+
+Credenciais não são armazenadas no código ou na imagem Docker.
+
+Em ambiente AWS, o acesso ao DynamoDB deve ocorrer utilizando IAM Role associada à task do ECS.
+
+### Estratégia atual por cliente
+
+No MVP, o `customerId` funciona como chave única no DynamoDB.
+
+Essa decisão simplifica a implementação atual, enquanto uma evolução futura pode utilizar `customerId` e `generatedAt` para armazenamento histórico.
+
+---
+
+## Tecnologias
+
+### Backend
+
+- Java 21
+- Spring Boot
+- Spring Web
+- Bean Validation
+- Spring Boot Actuator
+- Maven
+
+### AWS
+
+- AWS SDK for Java 2.x
+- Amazon DynamoDB
+- Amazon ECS Fargate
+- Amazon ECR
+- Amazon CloudWatch
+- AWS IAM
+
+### Documentação e testes
+
+- OpenAPI
+- JUnit
+- Spring Boot Test
+- MockMvc
+- k6
+
+### Infraestrutura e execução
+
+- Docker
+
+---
+
+## Configuração
+
+As principais configurações da aplicação são externalizadas por variáveis de ambiente.
+
+| Variável              | Descrição                 | Valor padrão                 |
+| --------------------- | ------------------------- | ---------------------------- |
+| `AWS_REGION`          | Região AWS usada pelo SDK | `sa-east-1`                  |
+| `DYNAMODB_TABLE_NAME` | Nome da tabela DynamoDB   | `credit-recovery-strategies` |
+
+O projeto não mantém `access key` ou `secret key` diretamente no código-fonte.
+
+Cada ambiente deve utilizar seu próprio mecanismo de autenticação com a AWS.
+
+### Ambiente local
+
+Em ambiente local, as credenciais podem ser configuradas por meio da AWS CLI:
+
+```powershell
+aws configure
+```
+
+Também podem ser utilizados:
+
+- perfis configurados pela AWS CLI;
+- variáveis de ambiente;
+- outros mecanismos disponíveis na cadeia padrão de credenciais do AWS SDK.
+
+### Ambiente AWS
+
+Em serviços como ECS Fargate, a aplicação deve utilizar IAM Role associada à task.
+
+Dessa forma, o acesso ao DynamoDB acontece sem armazenar credenciais fixas na aplicação ou na imagem Docker.
+
+A infraestrutura do MVP depende da configuração dos recursos AWS necessários, como:
+
+- cluster ECS;
+- task definition;
+- imagem armazenada no ECR;
+- variáveis de ambiente;
+- security groups;
+- subnets;
+- IAM Role da task;
+- configuração dos logs no CloudWatch.
+
+---
+
+## Executando localmente
+
+### Pré-requisitos
+
+Para executar o projeto localmente:
+
+- Java 21;
+- acesso ao Maven Wrapper do projeto;
+- credenciais AWS configuradas;
+- tabela DynamoDB disponível.
+
+### Executar a aplicação
+
+No Windows:
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+Após a inicialização, a aplicação estará disponível por padrão em:
+
+```text
+http://localhost:8080
+```
+
+### Verificar health check
+
+```powershell
+curl http://localhost:8080/actuator/health
+```
+
+---
 
 ## Docker
 
-Build da imagem:
+### Build da imagem
 
 ```powershell
 docker build -t credit-recovery-api:latest .
 ```
 
-Executar o container:
+### Executar o container
 
 ```powershell
 docker run --rm -p 8080:8080 `
@@ -254,130 +534,71 @@ docker run --rm -p 8080:8080 `
   credit-recovery-api:latest
 ```
 
-Health check no container:
+### Health check
 
 ```powershell
 curl http://localhost:8080/actuator/health
 ```
 
-## Observabilidade
+---
 
-Implementado:
+## Testes automatizados
 
-- Logs de geração de estratégia.
-- Logs de consulta encontrada.
-- Logs de consulta não encontrada.
-- Logs de erro na geração.
-- Logs de erro na persistência.
-- Tempo de processamento da geração em `durationMs`.
-- Health check via Spring Boot Actuator.
-- Logs em stdout/stderr, compatíveis com coleta pelo CloudWatch Logs no ECS.
-
-Dados que não devem ser registrados:
-
-- requisição completa;
-- `outstandingAmount`;
-- `creditScore`;
-- credenciais;
-- informações financeiras sensíveis.
-
-## Performance
-
-Foi criado um teste pequeno de performance usando k6 para validar o comportamento do endpoint principal da API.
-
-O objetivo não é realizar um stress test, mas sim demonstrar uma validação simples e controlada de tempo de resposta.
-
-Endpoint testado:
-
-```text
-POST /api/v1/strategies
-```
-
-Configuração do teste:
-
-- 3 usuários virtuais;
-- duração de 30 segundos;
-- threshold de referência: `p95 < 300 ms`;
-- taxa de erro máxima esperada: `5%`.
-
-Resultado obtido:
-
-| Métrica               |    Resultado |
-| --------------------- | -----------: |
-| Total de requisições  |         3564 |
-| Throughput médio      | 118.74 req/s |
-| Tempo médio           |     25.15 ms |
-| Mediana               |     14.32 ms |
-| p90                   |     62.29 ms |
-| p95                   |      69.1 ms |
-| Maior tempo observado |    528.57 ms |
-| Taxa de erro          |        0.00% |
-| Checks com sucesso    |         100% |
-
-Conclusão:
-
-```text
-No teste pequeno e controlado, o endpoint POST /api/v1/strategies ficou abaixo da referência de 300 ms no p95 e não apresentou erros HTTP.
-```
-
-Observação:
-
-```text
-Apesar de o maior tempo observado ter sido 528.57 ms, o critério utilizado foi p95. Isso significa que 95% das requisições responderam em até 69.1 ms.
-```
-
-Comando utilizado:
-
-```powershell
-k6 run performance\post-strategy.js
-```
-
-![Resultado do teste de performance com k6](prints/k6-performance.png)
-
-## Arquitetura em Produção
-
-Para um ambiente produtivo, a arquitetura poderia evoluir sem mudar a ideia central da aplicação.
-
-![Diagrama da arquitetura em produção](prints/diagrama-arquitetura-prod.png)
-
-## Resiliência e escalabilidade
-
-No projeto:
-
-- A API possui tratamento global de erros.
-- O DynamoDB oferece armazenamento gerenciado e escalável.
-- O container pode ser executado no ECS Fargate.
-- Os logs podem ser coletados pelo CloudWatch.
-
-Em uma arquitetura produtiva:
-
-- Mais de uma task reduziria a indisponibilidade.
-- Auto Scaling aumentaria a capacidade conforme a demanda.
-- Alarmes ajudariam a detectar falhas.
-- Tracing facilitaria o diagnóstico de gargalos.
-- Políticas IAM limitariam o acesso da aplicação somente aos recursos necessários.
-
-## Testes
-
-Os testes automatizados cobrem:
+Os testes automatizados cobrem pontos importantes da aplicação, incluindo:
 
 - regras do `CreditStrategyEngine`;
 - respostas HTTP do `StrategyController`;
-- validação de requisição inválida;
-- consulta existente e inexistente;
+- validação de requisições inválidas;
+- consulta de estratégia existente;
+- consulta de estratégia inexistente;
 - chamada ao repository pelo `StrategyService`.
 
-Comando:
+### Executar testes
+
+No Windows:
 
 ```powershell
 .\mvnw.cmd test
 ```
 
-## Pontos que podem ser evoluídos
+---
 
-- Manter evidências de performance atualizadas na documentação.
-- Adicionar logs para erros inesperados no tratamento global.
-- Criar histórico de estratégias com chave composta no DynamoDB.
-- Expor métricas de aplicação em ambiente controlado.
-- Proteger endpoints administrativos em ambiente produtivo.
-- Criar pipeline de deploy automatizado.
+## Evoluções futuras
+
+Algumas possíveis evoluções da solução são:
+
+- armazenar histórico de estratégias com chave composta no DynamoDB;
+- disponibilizar métricas adicionais da aplicação;
+- adicionar tracing distribuído;
+- configurar alarmes no CloudWatch;
+- proteger endpoints administrativos;
+- implementar autenticação e autorização caso necessário;
+- configurar Auto Scaling no ECS;
+- executar testes de carga e stress mais abrangentes;
+- automatizar o deploy com pipeline CI/CD;
+- provisionar a infraestrutura utilizando Infrastructure as Code;
+- ampliar a cobertura de testes automatizados.
+
+---
+
+## Resumo da solução
+
+O projeto demonstra um fluxo completo para geração de estratégias de recuperação de crédito para clientes PJ:
+
+```text
+Cliente
+    ↓
+API REST
+    ↓
+StrategyController
+    ↓
+StrategyService
+    ↓
+CreditStrategyEngine
+    ↓
+StrategyRepository
+    ↓
+Amazon DynamoDB
+```
+
+A implementação atual funciona como um MVP da solução, enquanto a arquitetura proposta demonstra como a aplicação poderia evoluir para um cenário com maiores requisitos de disponibilidade, escalabilidade, resiliência e observabilidade.
